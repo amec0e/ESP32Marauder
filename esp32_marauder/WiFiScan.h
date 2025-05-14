@@ -102,10 +102,19 @@
 #define BT_SCAN_ANALYZER 47
 #define WIFI_SCAN_PACKET_RATE 48
 #define WIFI_SCAN_AP_STA 49
+#define WIFI_SCAN_PINESCAN 50
+#define WIFI_SCAN_MULTISSID 51
 
 #define BASE_MULTIPLIER 4
 
 #define ANALYZER_NAME_REFRESH 100 // Number of events to refresh the name
+
+// PineScan and Multi SSID
+#define MULTISSID_THRESHOLD 3 // Threshold For Multi SSID
+#define MAX_MULTISSID_ENTRIES 100 // Max number of confirmed MultiSSIDs to store
+#define MAX_AP_ENTRIES 100 // Max number of APs to track for analysis
+#define MAX_DISPLAY_ENTRIES 1 // Max Unique MACs to display
+#define MAX_PINESCAN_ENTRIES 100 // PineScan Max Entries
 
 #define MAX_CHANNEL     14
 
@@ -283,6 +292,74 @@ class WiFiScan
       uint8_t payload[0];
       WifiMgmtHdr hdr;
     } wifi_ieee80211_packet_t;
+		
+		// Tracking structures for PineScan (similar to MultiSSID)
+    struct PineScanTracker {
+        uint8_t mac[6];               // MAC address in raw byte form
+        bool suspicious_oui;          // Has a suspicious OUI
+        bool tag_and_susp_cap;        // Has suspicious capability flags and tag count
+        uint8_t channel;              // Channel
+        int8_t rssi;                  // RSSI
+        bool reported;                // Whether this AP has been reported
+    };
+
+    // For confirmed Pineapple devices
+    struct ConfirmedPineScan {
+        uint8_t mac[6];               // MAC address
+        String detection_type;        // How it was detected (SUSP_OUI, TAG+SUSP_CAP, etc.)
+        String essid;                 // Last seen ESSID
+        uint8_t channel;              // Channel
+        int8_t rssi;                  // Signal strength
+        bool displayed;               // Whether it has been displayed yet
+    };
+    LinkedList<PineScanTracker>* pinescan_trackers;
+    LinkedList<ConfirmedPineScan>* confirmed_pinescan;
+    bool pinescan_list_full_reported; // Flag for tracking list status
+    
+    // Security Conditions For Pineapple detection
+    enum SecurityCondition {
+        NONE = 0x00,
+        SUSPICIOUS_WHEN_OPEN = 0x01,
+        SUSPICIOUS_WHEN_PROTECTED = 0x02,
+        SUSPICIOUS_ALWAYS = 0x04
+    };
+
+    // SuspiciousVendor struct
+    struct SuspiciousVendor {
+        const char* vendor_name;           // Vendor name
+        uint8_t security_flags;            // Security flags using enum
+        uint32_t ouis[20];                 // Array of OUIs (max 20 per vendor)
+        uint8_t oui_count;                 // Number of OUIs for this vendor
+    };
+
+    // Declare the table for Pineapple
+    static const SuspiciousVendor suspicious_vendors[];
+    static const int NUM_SUSPICIOUS_VENDORS;
+
+    // Track for AP list limit (Uninitialised, Done in RunSetup)
+    bool ap_list_full_reported;
+
+    // MULTI SSID STRUCTS
+
+    struct MultiSSIDTracker {
+        uint8_t mac[6];               // MAC address in raw byte form
+        uint16_t ssid_hashes[MULTISSID_THRESHOLD];  // Hashes of unique SSIDs
+        uint8_t unique_ssid_count;    // Total count of unique SSIDs
+        bool reported;                // Whether this AP has been reported
+    };
+
+    // New struct for confirmed MultiSSID devices
+    struct ConfirmedMultiSSID {
+        uint8_t mac[6];               // MAC address
+        String essid;                 // Last seen ESSID
+        uint8_t channel;              // Channel
+        int8_t rssi;                  // Signal strength
+        uint8_t ssid_count;           // Number of unique SSIDs
+        bool displayed;               // Whether it has been displayed yet
+    };
+    LinkedList<MultiSSIDTracker>* multissid_trackers;
+    LinkedList<ConfirmedMultiSSID>* confirmed_multissid;
+    bool multissid_list_full_reported;
 
     // barebones packet
     uint8_t packet[128] = { 0x80, 0x00, 0x00, 0x00, //Frame Control, Duration
@@ -389,6 +466,8 @@ class WiFiScan
     void RunGPSNmea();
     void RunMimicFlood(uint8_t scan_mode, uint16_t color);
     void RunPwnScan(uint8_t scan_mode, uint16_t color);
+    void RunPineScan(uint8_t scan_mode, uint16_t color);
+    void RunMultiSSIDScan(uint8_t scan_mode, uint16_t color);
     void RunBeaconScan(uint8_t scan_mode, uint16_t color);
     void RunRawScan(uint8_t scan_mode, uint16_t color);
     void RunStationScan(uint8_t scan_mode, uint16_t color);
@@ -500,6 +579,8 @@ class WiFiScan
     int clearAirtags();
     int clearFlippers();
     int clearStations();
+    int clearPineScanTrackers();
+    int clearMultiSSID();
     bool addSSID(String essid);
     int generateSSIDs(int count = 20);
     bool shutdownWiFi();
@@ -552,6 +633,9 @@ class WiFiScan
     static void activeEapolSnifferCallback(void* buf, wifi_promiscuous_pkt_type_t type);
     static void eapolSnifferCallback(void* buf, wifi_promiscuous_pkt_type_t type);
     static void wifiSnifferCallback(void* buf, wifi_promiscuous_pkt_type_t type);
+    static void pineScanSnifferCallback(void* buf, wifi_promiscuous_pkt_type_t type); // Pineapple
+    static int extractPineScanChannel(const uint8_t* payload, int len); // Pineapple
+    static void multiSSIDSnifferCallback(void* buf, wifi_promiscuous_pkt_type_t type); // MultiSSID
 
     /*#ifdef HAS_BT
       enum EBLEPayloadType
