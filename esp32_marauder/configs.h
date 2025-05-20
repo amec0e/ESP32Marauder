@@ -24,6 +24,7 @@
   //#define MARAUDER_REV_FEATHER
   //#define MARAUDER_CYD_MICRO // 2432S028
   //#define MARAUDER_CYD_GUITION // ESP32-2432S024 GUITION
+  //#define BPMCIRCUITS_FEBERIS
   //// END BOARD TARGETS
 
   #define MARAUDER_VERSION "v1.5.1"
@@ -63,6 +64,8 @@
     #define HARDWARE_NAME "Flipper Zero Dev Board Pro"
   #elif defined(XIAO_ESP32_S3)
     #define HARDWARE_NAME "XIAO ESP32 S3"
+  #elif defined(BPMCIRCUITS_FEBERIS)
+    #define HARDWARE_NAME "BPM Circuits FEBERIS"
   #else
     #define HARDWARE_NAME "ESP32"
   #endif
@@ -298,6 +301,19 @@
     //#define HAS_SD
     //#define HAS_TEMP_SENSOR
     //#define HAS_GPS
+  #endif
+
+  #ifdef BPMCIRCUITS_FEBERIS
+    #define FLIPPER_ZERO_HAT
+    //#define HAS_BATTERY
+    #define HAS_BT
+    //#define HAS_BUTTONS
+    #define HAS_NEOPIXEL_LED
+    //#define HAS_PWR_MGMT
+    //#define HAS_SCREEN
+    //#define HAS_SD
+    //#define HAS_TEMP_SENSOR
+    #define HAS_GPS
   #endif
   //// END BOARD FEATURES
 
@@ -1598,6 +1614,8 @@
     #define MEM_LOWER_LIM 10000
   #elif defined(XIAO_ESP32_S3)
     #define MEM_LOWER_LIM 10000
+  #elif defined(BPMCIRCUITS_FEBERIS)
+    #define MEM_LOWER_LIM 10000
   #endif
   //// END MEMORY LOWER LIMIT STUFF
 
@@ -1685,6 +1703,10 @@
       #define GPS_SERIAL_INDEX 1
       #define GPS_TX 6
       #define GPS_RX 9
+    #elif defined(BPMCIRCUITS_FEBERIS)
+      #define GPS_SERIAL_INDEX 2
+      #define GPS_TX 4
+      #define GPS_RX 13
     #endif
   #else
     #define mac_history_len 100
